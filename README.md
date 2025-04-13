@@ -8,8 +8,8 @@ This project provides tools for analyzing gene co-occurrence patterns in differe
 .
 ├── merge_matrices_simple.py    # Core analysis functions
 ├── run_simple_analysis.py      # Command-line interface
-└── results/
-    └── permutation_test/       # Analysis results for each cell type
+├── coexistence_utils.py      # Core tool functions
+└── analyze_spatial_data.py  # Analysis results for each cell type
 ```
 
 ## Features
