@@ -2,7 +2,7 @@
 
 # 检查filtered_gene_results.tsv文件是否存在
 if [ ! -f "filtered_gene_results.tsv" ]; then
-    echo "错误: filtered_gene_results.tsv 文件不存在"
+    echo "Error: filtered_gene_results.tsv not found"
     exit 1
 fi
 
@@ -18,11 +18,11 @@ do
         #mkdir -p "./results_$filename"
         
         # 运行Python脚本
-        echo "正在处理文件: $file"
+        echo "preprocessing file: $file"
         python analyze_spatial_data.py "$file" "./results"
         
-        echo "完成处理文件: $file"
-        echo "结果保存在: ./results"
+        echo "finished processing file: $file"
+        echo "results are stored in folder: ./results"
         echo "----------------------------"
     fi
 done

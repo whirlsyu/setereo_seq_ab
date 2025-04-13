@@ -30,26 +30,26 @@ def main():
     # 确保结果目录存在
     os.makedirs("./results/permutation_test", exist_ok=True)
     
-    logger.info("开始基因共存分析...")
+    logger.info("starting ...")
     
     if args.cell_type:
-        logger.info(f"分析特定细胞类型: {args.cell_type}")
+        logger.info(f"analyzing cell type: {args.cell_type}")
         success = merge_and_analyze_matrices(args.cell_type, args.analysis_type)
         if success:
-            logger.info(f"成功完成细胞类型 {args.cell_type} 的分析！")
+            logger.info(f"successfully analyzed cell type: {args.cell_type} ")
         else:
-            logger.error(f"分析细胞类型 {args.cell_type} 时出错")
+            logger.error(f"failed to analyze cell type: {args.cell_type} ")
     else:
-        logger.info(f"分析所有可用的细胞类型，分析类型: {args.analysis_type}")
+        logger.info(f"analyzing all cell types: {args.analysis_type}")
         processed_types = process_all_cell_types(args.analysis_type)
         
         if processed_types:
-            logger.info(f"成功分析的细胞类型: {', '.join(processed_types)}")
+            logger.info(f"successfully analyzed cell types: {', '.join(processed_types)}")
         else:
-            logger.warning("没有成功分析任何细胞类型")
+            logger.warning("no cell types were analyzed")
     
-    logger.info("分析完成！")
-    logger.info(f"结果保存在 ./results/permutation_test/ 目录下")
+    logger.info("completed.")
+    logger.info(f"results are saved in ./results/permutation_test/ ")
 
 if __name__ == "__main__":
     main() 

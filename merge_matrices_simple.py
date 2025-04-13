@@ -140,7 +140,7 @@ def plot_results(expected_avg, observed_avg, diff_matrix, p_values, output_dir, 
     plt.savefig(os.path.join(output_dir, f"{cell_type}_heatmap.png"), dpi=300)
     plt.close()
     
-    logger.info(f"已保存热图到 {os.path.join(output_dir, f'{cell_type}_heatmap.png')}")
+    logger.info(f"successfully saved {os.path.join(output_dir, f'{cell_type}_heatmap.png')}")
 
 def merge_and_analyze_matrices(cell_type, analysis_type="stereoseq_coexistence"):
     """
@@ -165,14 +165,14 @@ def merge_and_analyze_matrices(cell_type, analysis_type="stereoseq_coexistence")
     observed_files = glob.glob(os.path.join("./results", observed_pattern))
     
     if not expected_files:
-        logger.warning(f"未找到期望文件: {expected_pattern}")
+        logger.warning(f"can not found expected files: {expected_pattern}")
         return False
     
     if not observed_files:
-        logger.warning(f"未找到观察文件: {observed_pattern}")
+        logger.warning(f"can not found observed files: {observed_pattern}")
         return False
     
-    logger.info(f"找到 {len(expected_files)} 个期望文件和 {len(observed_files)} 个观察文件")
+    logger.info(f"find {len(expected_files)} expected files and {len(observed_files)} observed files")
     
     # 读取所有矩阵
     expected_matrices = []
@@ -182,7 +182,7 @@ def merge_and_analyze_matrices(cell_type, analysis_type="stereoseq_coexistence")
     for expected_file in expected_files:
         sample_id = get_sample_id(expected_file)
         if not sample_id:
-            logger.warning(f"无法从 {expected_file} 提取样本ID")
+            logger.warning(f"can not extract sample ID from {expected_file} ")
             continue
         
         # 寻找匹配的观察文件
@@ -193,7 +193,7 @@ def merge_and_analyze_matrices(cell_type, analysis_type="stereoseq_coexistence")
                 break
         
         if not observed_file:
-            logger.warning(f"未找到样本 {sample_id} 的观察文件")
+            logger.warning(f"can not found {sample_id} in observed files")
             continue
         
         try:
@@ -206,7 +206,7 @@ def merge_and_analyze_matrices(cell_type, analysis_type="stereoseq_coexistence")
             common_cols = expected_df.columns.intersection(observed_df.columns)
             
             if len(common_rows) == 0 or len(common_cols) == 0:
-                logger.warning(f"样本 {sample_id} 的矩阵没有共同的行或列")
+                logger.warning(f"sample {sample_id} has different row or column labels")
                 continue
             
             expected_df = expected_df.loc[common_rows, common_cols]
@@ -216,14 +216,14 @@ def merge_and_analyze_matrices(cell_type, analysis_type="stereoseq_coexistence")
             observed_matrices.append(observed_df)
             samples.append(sample_id)
             
-            logger.info(f"成功读取样本 {sample_id} 的矩阵 (形状: {expected_df.shape})")
+            logger.info(f"successfully loaded {sample_id} matrix (shape: {expected_df.shape})")
             
         except Exception as e:
-            logger.error(f"处理样本 {sample_id} 时出错: {str(e)}")
+            logger.error(f"precessing {sample_id} matrix failed: {str(e)}")
             continue
     
     if not expected_matrices or not observed_matrices:
-        logger.error("没有有效的矩阵可供处理")
+        logger.error("no matrix was loaded")
         return False
     
     # 找到所有矩阵共享的基因
@@ -232,10 +232,10 @@ def merge_and_analyze_matrices(cell_type, analysis_type="stereoseq_coexistence")
         common_genes = common_genes.intersection(matrix.index)
     
     common_genes = sorted(list(common_genes))
-    logger.info(f"找到 {len(common_genes)} 个共同基因")
+    logger.info(f"found {len(common_genes)} common genes")
     
     if len(common_genes) == 0:
-        logger.error("未找到共同基因")
+        logger.error("can not find any common genes")
         return False
     
     # 过滤每个矩阵，只包含共同基因
@@ -250,15 +250,15 @@ def merge_and_analyze_matrices(cell_type, analysis_type="stereoseq_coexistence")
     # 计算差异矩阵（观察-期望）
     diff_matrix = observed_avg - expected_avg
     
-    logger.info("正在执行排列测试...")
+    logger.info("testing ...")
     # 执行排列测试
     p_values = permutation_test(observed_avg.values, expected_avg.values)
     
     # 绘制结果
-    logger.info("正在生成热图...")
+    logger.info("heatmap ...")
     plot_results(expected_avg, observed_avg, diff_matrix, p_values, output_dir, cell_type)
     
-    logger.info(f"完成细胞类型 {cell_type} 的分析")
+    logger.info(f"completed processing {cell_type} ")
     return True
 
 def process_all_cell_types(analysis_type="stereoseq_coexistence"):
@@ -281,11 +281,11 @@ def process_all_cell_types(analysis_type="stereoseq_coexistence"):
         if match:
             cell_types.add(match.group(1))
     
-    logger.info(f"找到 {len(cell_types)} 个可用的细胞类型: {', '.join(cell_types)}")
+    logger.info(f"found {len(cell_types)} cell types: {', '.join(cell_types)}")
     
     successful_types = []
     for cell_type in cell_types:
-        logger.info(f"开始处理细胞类型: {cell_type}")
+        logger.info(f"processing cell type: {cell_type}")
         success = merge_and_analyze_matrices(cell_type, analysis_type)
         if success:
             successful_types.append(cell_type)
@@ -295,15 +295,15 @@ def process_all_cell_types(analysis_type="stereoseq_coexistence"):
 if __name__ == "__main__":
     import argparse
     
-    parser = argparse.ArgumentParser(description="合并并分析共存矩阵")
+    parser = argparse.ArgumentParser(description="combine matrices and perform permutation test")
     parser.add_argument("--cell_type", help="要分析的细胞类型 (不指定则分析所有)")
     parser.add_argument("--analysis_type", default="stereoseq_coexistence", help="分析类型")
     
     args = parser.parse_args()
     
     if args.cell_type:
-        logger.info(f"分析细胞类型: {args.cell_type}")
+        logger.info(f"analyzing cell type: {args.cell_type}")
         merge_and_analyze_matrices(args.cell_type, args.analysis_type)
     else:
-        logger.info(f"分析所有细胞类型，分析类型: {args.analysis_type}")
+        logger.info(f"analyzing all cell types: {args.analysis_type}")
         process_all_cell_types(args.analysis_type)
