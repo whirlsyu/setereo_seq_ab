@@ -1,6 +1,6 @@
 # Gene Co-occurrence Analysis
 
-This project provides tools for analyzing gene co-occurrence patterns in different cell types using single-cell RNA sequencing data. It includes scripts for processing expected and observed gene co-occurrence matrices, performing statistical tests, and generating visualizations.
+This project provides tools for analyzing gene co-occurrence patterns in different cell types using single-cell Setereo seq RNA sequencing data. It includes scripts for processing expected and observed gene co-occurrence matrices, performing statistical tests, and generating visualizations.
 
 ## Project Structure
 
