@@ -22,7 +22,7 @@ This project provides tools for analyzing gene co-occurrence patterns in differe
 
 ## Requirements
 
-- Python 3.6+
+- Python 3.9+
 - Required Python packages:
   - numpy
   - pandas
@@ -45,14 +45,9 @@ python run_simple_analysis.py --cell-type Guard_cell
 
 ### Analysis Types
 
-The script supports different analysis types:
-- `stereoseq_correlation` (default)
-- `stereoseq_pearson`
-- `stereoseq_spearman`
-
 To specify an analysis type:
 ```bash
-python run_simple_analysis.py --analysis-type stereoseq_pearson
+python run_simple_analysis.py --analysis-type stereoseq_coexistence
 ```
 
 ## Output Files
