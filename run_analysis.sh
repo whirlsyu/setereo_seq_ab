@@ -1,23 +1,23 @@
 #!/bin/bash
 
-# 检查filtered_gene_results.tsv文件是否存在
+# check filtered_gene_results.tsv 
 if [ ! -f "filtered_gene_results.tsv" ]; then
     echo "Error: filtered_gene_results.tsv not found"
     exit 1
 fi
 
-# 遍历当前目录下的所有h5ad文件
+# iterates through all the h5ad files in the current directory
 for file in *.h5ad
 do
-    # 检查文件是否存在（以防止*.h5ad不匹配任何文件）
+    # checks if the file exists
     if [ -f "$file" ]; then
-        # 提取文件名（不包括扩展名）
+        # get the filename not including the extension
         filename=$(basename "$file" .h5ad)
         
-        # 创建结果文件夹
+        # make a new directory for the results optional
         #mkdir -p "./results_$filename"
         
-        # 运行Python脚本
+        # run the analysis
         echo "preprocessing file: $file"
         python analyze_spatial_data.py "$file" "./results"
         
@@ -27,4 +27,4 @@ do
     fi
 done
 
-echo "所有文件处理完毕"
+echo "all files processed"

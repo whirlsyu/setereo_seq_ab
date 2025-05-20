@@ -2,8 +2,8 @@
 # -*- coding: utf-8 -*-
 
 """
-合并每个细胞类型的所有expected和observed矩阵，
-计算permutation test的P值并绘制热图
+combine expected and observed matrices，
+calculate p-value and plot heatmap
 """
 
 import os
@@ -16,19 +16,19 @@ import seaborn as sns
 from scipy.stats import pearsonr
 import logging
 
-# 设置日志
+# log
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 def get_sample_id(filename):
     """
-    从文件名中提取样本ID (SX-X)
+    get sample ID from file name (SX-X)
     
-    参数:
-    filename: 文件名
+    param:
+    filename: filename
     
-    返回:
-    样本ID，例如'S1-1'
+    return:
+    sample id, for instance:'S1-1'
     """
     match = re.search(r'(S\d+-\d+)', os.path.basename(filename))
     if match:
@@ -37,76 +37,74 @@ def get_sample_id(filename):
 
 def permutation_test(observed, expected, n_permutations=10000):
     """
-    执行排列测试，比较观察值和期望值
+    perform permutation test to calculate p-value for each element in the matrix
     
-    参数:
-    observed: 观察到的矩阵
-    expected: 期望的矩阵
-    n_permutations: 排列次数
+    param:
+    observed: oberved matrix
+    expected: expected matrix
+    n_permutations: permutation test iterations
     
-    返回:
-    p_values: 每个元素的p值矩阵
+    return:
+    p_values: p-value matrix
     """
-    # 确保矩阵形状一致
+    # check matrix shapes
     assert observed.shape == expected.shape, "观察矩阵和期望矩阵必须具有相同的形状"
     
-    # 计算实际差异（观察-期望）
+    # calculate difference between observed and expected
     actual_diff = observed - expected
     
-    # 初始化p值矩阵
+    # initialize p-value matrix
     p_values = np.zeros_like(observed)
     
-    # 获取非NaN位置的索引
+    # get valid indices
     valid_indices = ~np.isnan(actual_diff)
     
-    # 对非NaN位置执行排列测试
+    # perform permutation test
     for i in range(n_permutations):
         if i % 100 == 0:
             logger.info(f"正在执行排列测试: {i}/{n_permutations}")
         
-        # 创建随机排列
+        # create permutation matrix
         perm_matrix = np.random.permutation(observed[valid_indices])
         perm_diff = perm_matrix - expected[valid_indices]
         
-        # 更新p值计数
+        # update p-values
         p_values[valid_indices] += (np.abs(perm_diff) >= np.abs(actual_diff[valid_indices])).astype(float)
     
-    # 计算p值
+    # calculate mean p-values
     p_values[valid_indices] /= n_permutations
     
     return p_values
-# 使用向量化方法优化对角线归零
+
+# make diagonal elements to zero
 def zero_diagonal(df):
-    """将 DataFrame 的对角线元素设为 0（高效向量化版本）"""
+    """set diagonal elements to zero """
     df_plot = df.copy()
     np.fill_diagonal(df_plot.values, 0)
     return df_plot
 def plot_results(expected_avg, observed_avg, diff_matrix, p_values, output_dir, cell_type):
     """
-    绘制热图结果
+    heatmap of observed and expected matrices, and permutation test results
     
-    参数:
-    expected_avg: 期望值平均矩阵
-    observed_avg: 观察到的平均矩阵
-    diff_matrix: 差异矩阵（观察-期望）
-    p_values: p值矩阵
-    output_dir: 输出目录
-    cell_type: 细胞类型
+    param:
+    expected_avg: mean expected matrix
+    observed_avg: mean observed matrix
+    diff_matrix: difference matrix (observed-expected)
+    p_values: matrix of p-values
+    output_dir: output directory
+    cell_type: cell type
     """
     os.makedirs(output_dir, exist_ok=True)
     
-    # 保存原始矩阵为CSV
     expected_avg.to_csv(os.path.join(output_dir, f"{cell_type}_expected_avg.csv"))
     observed_avg.to_csv(os.path.join(output_dir, f"{cell_type}_observed_avg.csv"))
     diff_matrix.to_csv(os.path.join(output_dir, f"{cell_type}_diff.csv"))
     pd.DataFrame(p_values, index=expected_avg.index, columns=expected_avg.columns).to_csv(
         os.path.join(output_dir, f"{cell_type}_pvalues.csv")
     )
-    
-    # 绘制热图
+
     fig, axes = plt.subplots(2, 2, figsize=(20, 16))
     
-    # 处理并绘制所有矩阵
     expected_avg_plot = zero_diagonal(expected_avg)
     sns.heatmap(expected_avg_plot, ax=axes[0, 0], cmap="viridis", annot=False)
     axes[0, 0].set_title(f"Expected Co-occurrence Matrix - {cell_type}")
@@ -119,16 +117,14 @@ def plot_results(expected_avg, observed_avg, diff_matrix, p_values, output_dir, 
     sns.heatmap(diff_matrix_plot, ax=axes[1, 0], cmap="coolwarm", center=0, annot=False)
     axes[1, 0].set_title(f"Difference (Observed - Expected) - {cell_type}")
         
-    # 显著性热图 (p < 0.05标记为显著）
-    # 确保significance矩阵具有与diff_matrix相同的行列名
     significance = pd.DataFrame((p_values < 0.05).astype(float), 
                                 index=diff_matrix.index, 
                                 columns=diff_matrix.columns)
 
-    # 确保significance矩阵是对称的
+    # make sure the matrix is symmetric
     significance = (significance + significance.T) / 2
     
-    # 将对角线元素设置为不显著（False）
+    # make diagonal elements to zero
     for i in range(len(significance.index)):
         if significance.index[i] in significance.columns:
             significance.iloc[i, i] = 0.0
@@ -144,20 +140,18 @@ def plot_results(expected_avg, observed_avg, diff_matrix, p_values, output_dir, 
 
 def merge_and_analyze_matrices(cell_type, analysis_type="stereoseq_coexistence"):
     """
-    合并并分析特定细胞类型的观察和期望矩阵
+    combine all expected and observed matrices for a given cell type and perform permutation test
     
-    参数:
-    cell_type: 细胞类型
-    analysis_type: 分析类型
+    param:
+    cell_type: cell type, for instance: 'Bcell'
+    analysis_type: analysis type, for instance:"coexistence"
     
-    返回:
-    成功时返回True，失败时返回False
+    return:
+    True or False
     """
-    # 设置输出目录
     output_dir = os.path.join("./results/permutation_test", cell_type)
     os.makedirs(output_dir, exist_ok=True)
     
-    # 查找所有期望和观察文件
     expected_pattern = f"*_{analysis_type}_expected_{cell_type}.csv"
     observed_pattern = f"*_{analysis_type}_observed_{cell_type}.csv"
     
@@ -174,7 +168,7 @@ def merge_and_analyze_matrices(cell_type, analysis_type="stereoseq_coexistence")
     
     logger.info(f"find {len(expected_files)} expected files and {len(observed_files)} observed files")
     
-    # 读取所有矩阵
+
     expected_matrices = []
     observed_matrices = []
     samples = []
@@ -185,7 +179,6 @@ def merge_and_analyze_matrices(cell_type, analysis_type="stereoseq_coexistence")
             logger.warning(f"can not extract sample ID from {expected_file} ")
             continue
         
-        # 寻找匹配的观察文件
         observed_file = None
         for obs_file in observed_files:
             if sample_id in obs_file:
@@ -197,11 +190,9 @@ def merge_and_analyze_matrices(cell_type, analysis_type="stereoseq_coexistence")
             continue
         
         try:
-            # 读取文件
             expected_df = pd.read_csv(expected_file, index_col=0)
             observed_df = pd.read_csv(observed_file, index_col=0)
             
-            # 确保行列标签匹配
             common_rows = expected_df.index.intersection(observed_df.index)
             common_cols = expected_df.columns.intersection(observed_df.columns)
             
@@ -226,7 +217,7 @@ def merge_and_analyze_matrices(cell_type, analysis_type="stereoseq_coexistence")
         logger.error("no matrix was loaded")
         return False
     
-    # 找到所有矩阵共享的基因
+    # find all the shared genes
     common_genes = set(expected_matrices[0].index)
     for matrix in expected_matrices + observed_matrices:
         common_genes = common_genes.intersection(matrix.index)
@@ -238,23 +229,19 @@ def merge_and_analyze_matrices(cell_type, analysis_type="stereoseq_coexistence")
         logger.error("can not find any common genes")
         return False
     
-    # 过滤每个矩阵，只包含共同基因
+    # filter matrices only with common genes
     for i in range(len(expected_matrices)):
         expected_matrices[i] = expected_matrices[i].loc[common_genes, common_genes]
         observed_matrices[i] = observed_matrices[i].loc[common_genes, common_genes]
     
-    # 计算平均矩阵
     expected_avg = pd.concat(expected_matrices).groupby(level=0).mean()
     observed_avg = pd.concat(observed_matrices).groupby(level=0).mean()
     
-    # 计算差异矩阵（观察-期望）
     diff_matrix = observed_avg - expected_avg
     
     logger.info("testing ...")
-    # 执行排列测试
     p_values = permutation_test(observed_avg.values, expected_avg.values)
     
-    # 绘制结果
     logger.info("heatmap ...")
     plot_results(expected_avg, observed_avg, diff_matrix, p_values, output_dir, cell_type)
     
@@ -263,15 +250,15 @@ def merge_and_analyze_matrices(cell_type, analysis_type="stereoseq_coexistence")
 
 def process_all_cell_types(analysis_type="stereoseq_coexistence"):
     """
-    处理所有可用的细胞类型
+    process all cell types
     
-    参数:
-    analysis_type: 分析类型
+    param:
+    analysis_type: analysis type, for instance:"stereoseq_coexistence"
     
-    返回:
-    成功处理的细胞类型列表
+    return:
+    cell types that were successfully processed
     """
-    # 查找所有可用的细胞类型
+    # all expected files
     pattern = f"*_{analysis_type}_expected_*.csv"
     expected_files = glob.glob(os.path.join("./results", pattern))
     
@@ -296,8 +283,8 @@ if __name__ == "__main__":
     import argparse
     
     parser = argparse.ArgumentParser(description="combine matrices and perform permutation test")
-    parser.add_argument("--cell_type", help="要分析的细胞类型 (不指定则分析所有)")
-    parser.add_argument("--analysis_type", default="stereoseq_coexistence", help="分析类型")
+    parser.add_argument("--cell_type", help="cell type name (process all cell types if not specified)")
+    parser.add_argument("--analysis_type", default="stereoseq_coexistence", help="analysis type (default: stereoseq_coexistence)")
     
     args = parser.parse_args()
     

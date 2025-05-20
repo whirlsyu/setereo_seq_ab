@@ -100,7 +100,7 @@ def list_files():
     for folder in ['.', 'STRING', 'data']:
         if os.path.exists(folder):
             for f in os.listdir(folder):
-                if f != '.DS_Store':  # 排除 .DS_Store 文件
+                if f != '.DS_Store':  # exclude .DS_Store on macOS
                     file_path = os.path.join(folder, f)
                     if os.path.isfile(file_path):
                         file_stats = os.stat(file_path)

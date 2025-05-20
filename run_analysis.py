@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-运行细胞类型间共存矩阵的置换检验分析
+analyze observed and expected co-existence matrices for cell types and perform permutation test
 """
 
 import sys
@@ -11,9 +11,9 @@ from merge_matrices import merge_observed_expected_with_pvalue, process_all_cell
 
 def main():
     parser = argparse.ArgumentParser(description="analyze observed and expected matrices for cell types and perform permutation test")
-    parser.add_argument("--cell-type", type=str, help="要分析的细胞类型，不指定则分析所有细胞类型")
+    parser.add_argument("--cell-type", type=str, help="cell type to analyze, default is all")
     parser.add_argument("--analysis-type", type=str, default="coexistence", 
-                        help="分析类型，默认为'coexistence'")
+                        help="cell type to analyze, default is'coexistence'")
     
     args = parser.parse_args()
     

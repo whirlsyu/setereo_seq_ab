@@ -2,8 +2,8 @@
 # -*- coding: utf-8 -*-
 
 """
-运行细胞类型的observed和expected矩阵比较分析
-将所有样本(S1-S4)合并成一个整体进行分析
+run analysis of observed and expected matrices
+all the samples are merged into one
 """
 
 import os
@@ -12,22 +12,22 @@ import argparse
 import logging
 from merge_matrices_simple import merge_and_analyze_matrices, process_all_cell_types
 
-# 设置日志
+# set log level
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 def main():
     """
-    主函数，处理命令行参数并运行分析
+    main function command line interface
     """
-    parser = argparse.ArgumentParser(description="分析基因共存数据")
-    parser.add_argument("--cell-type", dest="cell_type", help="要分析的细胞类型，不指定则分析所有类型")
+    parser = argparse.ArgumentParser(description="analysis of observed and expected matrices")
+    parser.add_argument("--cell-type", dest="cell_type", help="cell type to analyze")
     parser.add_argument("--analysis-type", dest="analysis_type", default="stereoseq_coexistence", 
-                        help="分析类型，默认为stereoseq_coexistence")
+                        help="analysis type: stereoseq_coexistence")
     
     args = parser.parse_args()
     
-    # 确保结果目录存在
+    # make output folder
     os.makedirs("./results/permutation_test", exist_ok=True)
     
     logger.info("starting ...")

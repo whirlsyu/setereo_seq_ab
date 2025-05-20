@@ -2,8 +2,8 @@
 # -*- coding: utf-8 -*-
 
 """
-合并每个细胞类型的expected和observed矩阵，
-按照不同的样本分组进行置换检验，计算P值并绘制热图
+merge all matrices and perform permutation test
+calculate p-value and plot heatmap
 """
 
 import os
@@ -17,13 +17,13 @@ from coexistence_utils import merge_matrices_with_pvalue, element_wise_permutati
 
 def get_sample_id(filename):
     """
-    从文件名中提取样本ID (SX-X)
+    obtain sample ID (SX-X)
     
-    参数:
-    filename: 文件名
+    params:
+    filename: file name
     
-    返回:
-    样本ID，例如'S1-1'
+    return:
+    sample id, for instance:'S1-1'
     """
     match = re.match(r'(S\d+-\d+)_', os.path.basename(filename))
     if match:
@@ -32,23 +32,23 @@ def get_sample_id(filename):
 
 def merge_observed_expected_with_pvalue(cell_type, analysis_type="coexistence"):
     """
-    为特定细胞类型的不同样本分组间进行置换检验，计算P值，并将结果绘制为热图
+    analyze observed and expected matrices and calculate p-value for each sample
     
-    参数:
-    cell_type: 细胞类型名称
-    analysis_type: 分析类型，例如"coexistence"
+    params:
+    cell_type: cell type, for instance: 'Bcell'
+    analysis_type: analysis type, for instance:"coexistence"
     """
-    print(f"开始处理细胞类型: {cell_type}, 分析类型: {analysis_type}")
+    print(f"starting to analyze cell type: {cell_type}, analysis type: {analysis_type}")
     
-    # 获取所有相关文件
+    # get all the expected and observed matrices
     expected_files = glob.glob(f"./results/*_{analysis_type}_expected_{cell_type}.csv")
     observed_files = glob.glob(f"./results/*_{analysis_type}_observed_{cell_type}.csv")
     
     if not expected_files or not observed_files:
-        print(f"警告: 找不到细胞类型 {cell_type} 的 {analysis_type} 矩阵文件")
+        print(f"warning: can not find any {cell_type} or {analysis_type} files")
         return None
     
-    # 根据样本ID对文件进行分组
+    # group files by sample ID
     expected_by_sample = {}
     observed_by_sample = {}
     
@@ -62,11 +62,11 @@ def merge_observed_expected_with_pvalue(cell_type, analysis_type="coexistence"):
         if sample_id:
             observed_by_sample.setdefault(sample_id, []).append(file_path)
     
-    # 检查样本ID是否匹配
+    # check sample IDs
     all_sample_ids = set(expected_by_sample.keys()) | set(observed_by_sample.keys())
-    print(f"找到的样本分组: {all_sample_ids}")
+    print(f"finished checking sample IDs, all sample IDs: {all_sample_ids}")
     
-    # 读取每个样本的矩阵数据
+    # reading matrices
     sample_data = {}
     gene_names = None
     
@@ -75,14 +75,14 @@ def merge_observed_expected_with_pvalue(cell_type, analysis_type="coexistence"):
         observed_sample_files = observed_by_sample.get(sample_id, [])
         
         if not expected_sample_files or not observed_sample_files:
-            print(f"警告: 样本 {sample_id} 的期望或观察文件缺失，跳过")
+            print(f"warning: sample {sample_id} has no expected or observed files, skip")
             continue
         
-        # 确保文件数量匹配
+        # make sure the files are sorted as same as expected
         expected_sample_files.sort()
         observed_sample_files.sort()
         
-        # 读取矩阵
+        # read matrices
         expected_matrices = []
         observed_matrices = []
         
@@ -96,16 +96,16 @@ def merge_observed_expected_with_pvalue(cell_type, analysis_type="coexistence"):
             observed_df = pd.read_csv(observed_file, index_col=0)
             observed_matrices.append(observed_df.values)
         
-        # 计算该样本的平均矩阵
+        # calculate the matrices
         if expected_matrices and observed_matrices:
             # 确保所有矩阵形状相同
             matrix_shape = expected_matrices[0].shape
             for mat in expected_matrices + observed_matrices:
                 if mat.shape != matrix_shape:
-                    print(f"警告: 样本 {sample_id} 中存在形状不一致的矩阵，跳过")
+                    print(f"warning: sample {sample_id} has inconsistent matrix shape, skip")
                     continue
             
-            # 计算平均矩阵
+            # get the average matrices
             expected_avg = np.mean(expected_matrices, axis=0)
             observed_avg = np.mean(observed_matrices, axis=0)
             
@@ -115,15 +115,15 @@ def merge_observed_expected_with_pvalue(cell_type, analysis_type="coexistence"):
                 'gene_names': gene_names
             }
     
-    # 进行样本间的置换检验
+    # perform permutation test
     if len(sample_data) < 2:
-        print(f"警告: 细胞类型 {cell_type} 只有 {len(sample_data)} 个有效样本组，至少需要2个样本组才能进行比较")
+        print(f"warning: cell type:{cell_type} only have {len(sample_data)} samples, at least 2 samples are required, skip")
         return None
     
-    # 创建输出目录
+    # create output folder
     os.makedirs("./permutation_test", exist_ok=True)
     
-    # 对所有样本对进行置换检验
+    # do the permutation test
     comparison_results = {}
     
     sample_ids = list(sample_data.keys())
@@ -132,32 +132,30 @@ def merge_observed_expected_with_pvalue(cell_type, analysis_type="coexistence"):
             sample1 = sample_ids[i]
             sample2 = sample_ids[j]
             
-            print(f"比较样本 {sample1} 和 {sample2}")
+            print(f"comparing {sample1} and {sample2}")
             
-            # 获取两个样本的数据
+            # get the observation and expected matrices
             observed1 = sample_data[sample1]['observed']
             expected1 = sample_data[sample1]['expected']
             observed2 = sample_data[sample2]['observed']
             expected2 = sample_data[sample2]['expected']
             gene_names = sample_data[sample1]['gene_names']
             
-            # 对观察值进行置换检验
+            # calculate the difference between observed and expected
             observed_diff = observed1 - observed2
-            
-            # 对期望值进行置换检验
             expected_diff = expected1 - expected2
             
-            # 计算观察值与期望值之差的差异
+            # calculate the difference between observed and expected
             o_e_diff1 = observed1 - expected1
             o_e_diff2 = observed2 - expected2
             diff_of_diff = o_e_diff1 - o_e_diff2
             
-            # 进行元素级别的置换检验
+            # calculate the p-value matrix
             p_value_matrix, _ = element_wise_permutation_test(
                 o_e_diff1, o_e_diff2, n_permutations=1000
             )
             
-            # 保存比较结果
+            # save the results
             comparison_name = f"{sample1}_vs_{sample2}"
             comparison_results[comparison_name] = {
                 'observed_diff': observed_diff,
@@ -169,7 +167,7 @@ def merge_observed_expected_with_pvalue(cell_type, analysis_type="coexistence"):
                 'gene_names': gene_names
             }
             
-            # 绘制和保存结果
+            # plot and save the results
             plot_comparison_results(
                 comparison_results[comparison_name], 
                 cell_type, 
@@ -181,31 +179,31 @@ def merge_observed_expected_with_pvalue(cell_type, analysis_type="coexistence"):
 
 def plot_comparison_results(results, cell_type, analysis_type, comparison_name):
     """
-    绘制样本比较结果的热图
+    plot the comparison results
     
-    参数:
-    results: 包含比较结果的字典
-    cell_type: 细胞类型名称
-    analysis_type: 分析类型
-    comparison_name: 比较名称，如"S1-1_vs_S2-3"
+    params:
+    results: the dict of comparison results
+    cell_type: cell type, for instance: 'Guard cell'
+    analysis_type: analysis type, for instance:"coexistence"
+    comparison_name: comparison name, for instance:"S1-1_vs_S2-3"
     """
-    # 提取矩阵和基因名称
+    
     observed_diff = results['observed_diff']
     expected_diff = results['expected_diff']
     diff_of_diff = results['diff_of_diff']
     p_value_matrix = results['p_value']
     gene_names = results['gene_names']
     
-    # 转换为DataFrame
+    # convert to data frame
     observed_diff_df = pd.DataFrame(observed_diff, index=gene_names, columns=gene_names)
     expected_diff_df = pd.DataFrame(expected_diff, index=gene_names, columns=gene_names)
     diff_of_diff_df = pd.DataFrame(diff_of_diff, index=gene_names, columns=gene_names)
     p_value_df = pd.DataFrame(p_value_matrix, index=gene_names, columns=gene_names)
     
-    # 创建图形
+    # create a figure
     plt.figure(figsize=(20, 15))
     
-    # 绘制四个子图
+    # four subplots
     plt.subplot(2, 2, 1)
     sns.heatmap(observed_diff_df, cmap='coolwarm', center=0, xticklabels=True, yticklabels=True)
     plt.title(f'Observed Difference - {comparison_name}')
@@ -225,7 +223,7 @@ def plot_comparison_results(results, cell_type, analysis_type, comparison_name):
     plt.yticks(rotation=0)
     
     plt.subplot(2, 2, 4)
-    # 使用对数比例显示p值
+    # using log for p-value
     log_p_value_df = -np.log10(p_value_df.clip(lower=1e-10))
     sns.heatmap(log_p_value_df, cmap='viridis', xticklabels=True, yticklabels=True)
     plt.title(f'Significance (-log10 P-value) - {comparison_name}')
@@ -237,38 +235,38 @@ def plot_comparison_results(results, cell_type, analysis_type, comparison_name):
                 dpi=300, bbox_inches='tight')
     plt.close()
     
-    # 保存结果为CSV
+    # save the results
     observed_diff_df.to_csv(f'./plots/permutation_test/{analysis_type}_{cell_type}_{comparison_name}_observed_diff.csv')
     expected_diff_df.to_csv(f'./plots/permutation_test/{analysis_type}_{cell_type}_{comparison_name}_expected_diff.csv')
     diff_of_diff_df.to_csv(f'./plots/permutation_test/{analysis_type}_{cell_type}_{comparison_name}_diff_of_diff.csv')
     p_value_df.to_csv(f'./plots/permutation_test/{analysis_type}_{cell_type}_{comparison_name}_pvalue.csv')
     
-    # 创建带有显著性标记的热图
+    # create a heatmap
     plt.figure(figsize=(14, 12))
     
-    # 标记显著的位置 (p < 0.05)
+    # mark the significant genes
     significant_mask = p_value_df < 0.05
     
-    # 绘制热图
+    # plot the heatmap
     ax = sns.heatmap(diff_of_diff_df, cmap='coolwarm', center=0, 
                      xticklabels=True, yticklabels=True, 
                      annot=False, fmt='.2f')
     
-    # 在显著位置添加星号标记
+    # mark the significant genes
     for i in range(len(gene_names)):
         for j in range(len(gene_names)):
             if significant_mask.iloc[i, j]:
-                # p < 0.05时添加*
+                # add * for p < 0.05
                 if p_value_df.iloc[i, j] < 0.05 and p_value_df.iloc[i, j] >= 0.01:
                     ax.text(j + 0.5, i + 0.5, '*', 
                             horizontalalignment='center', verticalalignment='center',
                             color='black', fontsize=12)
-                # p < 0.01时添加**
+                # add ** for p < 0.01
                 elif p_value_df.iloc[i, j] < 0.01 and p_value_df.iloc[i, j] >= 0.001:
                     ax.text(j + 0.5, i + 0.5, '**', 
                             horizontalalignment='center', verticalalignment='center',
                             color='black', fontsize=12)
-                # p < 0.001时添加***
+                # add *** for p < 0.001
                 elif p_value_df.iloc[i, j] < 0.001:
                     ax.text(j + 0.5, i + 0.5, '***', 
                             horizontalalignment='center', verticalalignment='center',
@@ -284,38 +282,38 @@ def plot_comparison_results(results, cell_type, analysis_type, comparison_name):
 
 def process_all_cell_types(analysis_type="coexistence"):
     """
-    处理所有可用的细胞类型
+    process all cell types
     
-    参数:
-    analysis_type: 分析类型，例如"coexistence"
+    param:
+    analysis_type: analysis type, for instance:"coexistence"
     """
-    # 从文件名中提取所有可用的细胞类型
+    # get all the csv files
     all_files = glob.glob(f"./plots/*_{analysis_type}_expected_*.csv")
     
     if not all_files:
-        print(f"警告: 找不到任何 {analysis_type} 矩阵文件")
+        print(f"warning: can not find any {analysis_type} files")
         return
     
-    # 从文件名中提取细胞类型
+    # subset the files by cell type
     cell_types = set()
     for file_path in all_files:
         file_name = os.path.basename(file_path)
-        # 提取细胞类型（在"_expected_"和".csv"之间的部分）
+        # get cell type by file name
         parts = file_name.split(f"_{analysis_type}_expected_")
         if len(parts) == 2:
             cell_type = parts[1].replace(".csv", "")
             cell_types.add(cell_type)
     
-    print(f"找到的细胞类型: {cell_types}")
+    print(f"finding cell types: {cell_types}")
     
-    # 处理每个细胞类型
+    # process each cell type
     for cell_type in cell_types:
-        print(f"处理细胞类型: {cell_type}")
+        print(f"processing cell type: {cell_type}")
         merge_observed_expected_with_pvalue(cell_type, analysis_type)
 
 if __name__ == "__main__":
-    # 默认处理所有细胞类型的"coexistence"分析
+    # by default, process all cell types
     process_all_cell_types("coexistence")
     
-    # 如果有需要，也可以处理特定细胞类型
+    # if you want to process a specific cell type
     # merge_observed_expected_with_pvalue("Guard_cell", "coexistence") 

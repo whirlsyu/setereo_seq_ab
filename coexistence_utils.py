@@ -15,7 +15,7 @@ def calculate_coexistence_ratio(data, epsilon=1e-10):
     print(f"Binary data shape: {binary_data.shape}")
     
     if binary_data.shape[1] == 1:
-        # 如果只有一个基因,返回1x1的矩阵
+        # if only one gene, return 1.0
         return np.array([[1.0]])
     
     if sp.issparse(binary_data):
@@ -27,10 +27,10 @@ def calculate_coexistence_ratio(data, epsilon=1e-10):
     
     print(f"Coexistence matrix shape: {coexistence_matrix.shape}")
     
-    # 计算分母矩阵
+
     denominator_matrix = gene_sums[:, np.newaxis] + gene_sums[np.newaxis, :] - coexistence_matrix
     
-    # 避免除以零
+    # avioding division by zero
     denominator_matrix[denominator_matrix == 0] = epsilon
     
     result = coexistence_matrix / denominator_matrix
@@ -43,7 +43,7 @@ def calculate_coexistence_ratio(data, epsilon=1e-10):
     
     return result
 
-# 修改计算共存比率的函数
+
 def calculate_coexistence_ratio_all_as_base(data, epsilon=1e-10):
     print(f"Input data type: {type(data)}")
     print(f"Input data shape: {data.shape}")
@@ -90,16 +90,15 @@ def calculate_coexistence_ratio_probability(data, epsilon=1e-10):
     if binary_data.shape[1] == 1:
         return np.array([[1.0]])
     
-    total_cells = binary_data.shape[0]  # 计算总细胞数
+    total_cells = binary_data.shape[0]  # total cells
     coexistence_matrix = binary_data.T @ binary_data
     
-    # 计算基因表达比率（基因1和基因2有表达的细胞占总细胞的百分比）
     gene_expression_ratios = binary_data.sum(axis=0) / total_cells  # 每个基因的表达比率
     
-    # 确保 gene_expression_ratios 是一维数组
+    # make sure gene_expression_ratios is a 1D array
     gene_expression_ratios = np.asarray(gene_expression_ratios).flatten()
 
-    # 计算共存比率
+    # calculate  coexistence ratio matrix
     
     expected_data = (gene_expression_ratios[:, np.newaxis] * gene_expression_ratios[np.newaxis, :])
     observed_data = (coexistence_matrix / total_cells)
@@ -118,13 +117,10 @@ def calculate_coexistence_ratio_probability(data, epsilon=1e-10):
     return (result,observed_data,expected_data)
 
 def permutation_test(observed_data, expected_data, n_permutations=10000):
-    # 计算观察值的差异
     observed_diff = np.mean(observed_data) - np.mean(expected_data)
-    
-    # 合并数据
+
     combined_data = np.concatenate([observed_data, expected_data])
     
-    # 随机重排并计算差异
     perm_diffs = []
     for _ in range(n_permutations):
         np.random.shuffle(combined_data)  # 随机重排
@@ -132,57 +128,50 @@ def permutation_test(observed_data, expected_data, n_permutations=10000):
         perm_expected = combined_data[len(observed_data):]
         perm_diff = np.mean(perm_observed) - np.mean(perm_expected)
         perm_diffs.append(perm_diff)
-    
-    # 计算 P 值
+
     p_value = (np.abs(np.array(perm_diffs)) >= np.abs(observed_diff)).mean()
     
     return observed_diff, p_value
 
 def element_wise_permutation_test(observed_matrix, expected_matrix, n_permutations=1000):
     """
-    对观察矩阵和期望矩阵的每个元素进行位置对应的置换检验
+    perform element-wise permutation test
     
-    参数:
-    observed_matrix: 观察到的共存矩阵，通常是from calculate_coexistence_ratio_probability返回的observed_data
-    expected_matrix: 期望的共存矩阵，通常是from calculate_coexistence_ratio_probability返回的expected_data
-    n_permutations: 置换次数，默认为1000次
+    params:
+    observed_matrix: from calculate_coexistence_ratio_probability calculated observed_data
+    expected_matrix: from calculate_coexistence_ratio_probability calculated expected_data
+    n_permutations: permutation times
     
-    返回:
-    p_value_matrix: 每个位置的p值矩阵
-    diff_matrix: 观察值与期望值之间的差异矩阵
+    return:
+    p_value_matrix: p value matrix
+    diff_matrix: difference matrix
     """
-    # 确保矩阵形状相同
     assert observed_matrix.shape == expected_matrix.shape, "观察矩阵和期望矩阵形状必须相同"
     
     rows, cols = observed_matrix.shape
     p_value_matrix = np.zeros((rows, cols))
     diff_matrix = observed_matrix - expected_matrix
     
-    # 对每个元素进行置换检验
     for i in range(rows):
         for j in range(cols):
             observed_val = observed_matrix[i, j]
             expected_val = expected_matrix[i, j]
             
-            # 如果观察值和期望值相同，则p值为1
+
             if observed_val == expected_val:
                 p_value_matrix[i, j] = 1.0
                 continue
             
-            # 执行置换检验
             observed_diff = observed_val - expected_val
             
-            # 将两个值放入数组中进行置换
             values = np.array([observed_val, expected_val])
             
-            # 随机重排并计算差异
             perm_diffs = []
             for _ in range(n_permutations):
                 np.random.shuffle(values)  # 随机重排
                 perm_diff = values[0] - values[1]
                 perm_diffs.append(perm_diff)
             
-            # 计算 P 值
             p_value = np.mean(np.abs(np.array(perm_diffs)) >= np.abs(observed_diff))
             p_value_matrix[i, j] = p_value
     
@@ -190,56 +179,53 @@ def element_wise_permutation_test(observed_matrix, expected_matrix, n_permutatio
 
 def merge_matrices_with_pvalue(observed_matrices_list, expected_matrices_list, gene_names, cell_type="Unknown", n_permutations=1000):
     """
-    合并多个观察矩阵和期望矩阵，并计算每个位置的p值
+    combine multiple observed and expected matrices into a single matrix,
+    and calculate p-values for each element.
     
-    参数:
-    observed_matrices_list: 观察矩阵列表，每个元素是一个n×n的numpy数组
-    expected_matrices_list: 期望矩阵列表，每个元素是一个n×n的numpy数组
-    gene_names: 基因名称列表，长度为n
-    cell_type: 细胞类型名称，用于输出信息
-    n_permutations: 置换检验的次数，默认为1000
+    params:
+    observed_matrices_list: observerved matrix list, every element is a n×n numpy array
+    expected_matrices_list: expected matrix list, every element is a n×n numpy array
+    gene_names: gene names list, every element is a string, length is n, n is the number of genes
+    cell_type: cell type, for instance: 'Bcell'
+    n_permutations: permutation times, default is 1000
     
-    返回:
-    merged_result: 包含合并后的观察矩阵、期望矩阵、差异矩阵和p值矩阵的字典
+    return:
+    merged_result: a dict containing merged observed and expected matrices, p-values, gene names and cell types
     """
-    print(f"处理细胞类型: {cell_type}")
+    print(f"starting to merge matrices for cell type: {cell_type}")
     
-    # 检查输入矩阵列表的长度是否相同
     if len(observed_matrices_list) != len(expected_matrices_list):
-        raise ValueError("观察矩阵列表和期望矩阵列表长度必须相同")
+        raise ValueError("observed_matrices_list and expected_matrices_list must have the same length")
     
     if len(observed_matrices_list) == 0:
-        raise ValueError("矩阵列表不能为空")
+        raise ValueError("matrices list must not be empty")
     
     # 检查所有矩阵的形状是否相同
     matrix_shape = observed_matrices_list[0].shape
     for obs_mat, exp_mat in zip(observed_matrices_list, expected_matrices_list):
         if obs_mat.shape != matrix_shape or exp_mat.shape != matrix_shape:
-            raise ValueError("所有矩阵的形状必须相同")
+            raise ValueError("the shape of all matrices must be the same")
     
-    # 初始化合并后的矩阵
     n_matrices = len(observed_matrices_list)
     merged_observed = np.zeros(matrix_shape)
     merged_expected = np.zeros(matrix_shape)
     
-    # 合并矩阵
     for obs_mat, exp_mat in zip(observed_matrices_list, expected_matrices_list):
         merged_observed += obs_mat
         merged_expected += exp_mat
     
-    # 计算平均值
+
     merged_observed /= n_matrices
     merged_expected /= n_matrices
     
-    print(f"已合并 {n_matrices} 个矩阵")
-    print(f"合并后的矩阵形状: {merged_observed.shape}")
+    print(f" {n_matrices} matrices have been merged ")
+    print(f"the shape of merged matrices: {merged_observed.shape}")
     
-    # 对每个矩阵位置执行置换检验
     p_value_matrix, diff_matrix = element_wise_permutation_test(
         merged_observed, merged_expected, n_permutations
     )
     
-    # 创建结果字典
+    # return the merged result
     merged_result = {
         'observed': merged_observed,
         'expected': merged_expected,
